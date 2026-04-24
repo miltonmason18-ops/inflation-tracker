@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import requests
-from datetime import datetime
 
 st.set_page_config(
     page_title="Naira Inflation Tracker",
@@ -12,8 +11,8 @@ st.set_page_config(
 
 @st.cache_data(ttl=86400)
 def get_inflation_data():
-    """Fetch Nigeria CPI data from World Bank API 2015-2024"""
-    url = "https://api.worldbank.org/v2/country/NG/indicator/FP.CPI.TOTL?date=2015:2024&format=json&per_page=20"
+    """Fetch Nigeria CPI data and calculate YoY inflation rate"""
+    url = "https://api.worldbank.org/v2/country/NG/indicator/FP.CPI.TOTL?date=2014:2024&format=json&per_page=20"
     try:
         response = requests.get(url, timeout=10)
         data = response.json()
@@ -22,16 +21,21 @@ def get_inflation_data():
 
         records = data[1]
         df = pd.DataFrame([
-            {"Year": int(item["date"]), "Inflation Rate": item["value"]}
+            {"Year": int(item["date"]), "CPI": item["value"]}
             for item in records if item["value"] is not None
         ])
-        return df.sort_values("Year")
+        df = df.sort_values("Year")
+
+        # Calculate YoY inflation rate from CPI
+        df["Inflation Rate"] = df["CPI"].pct_change() * 100
+        df = df.dropna() # Remove first row with NaN
+        return df
     except:
         return None
 
 def calculate_purchasing_power(amount, start_year, end_year, df):
     """Calculate equivalent purchasing power using cumulative inflation"""
-    df_range = df[(df["Year"] >= start_year) & (df["Year"] <= end_year-1)]
+    df_range = df[(df["Year"] > start_year) & (df["Year"] <= end_year)]
     if df_range.empty:
         return amount
 
@@ -78,8 +82,8 @@ st.markdown("See what your money from a past year is worth today")
 
 col1, col2 = st.columns(2)
 with col1:
-    amount = st.number_input("Amount (₦)", min_value=100, value=10000, step=1000)
-    start_year = st.selectbox("From Year", options=df["Year"].tolist()[:-1], index=5)
+    amount = st.number_input("Amount (₦)", min_value=100, value=250000, step=1000)
+    start_year = st.selectbox("From Year", options=df["Year"].tolist()[:-1], index=0)
 with col2:
     end_year = df["Year"].max()
     st.metric("To Year", end_year)

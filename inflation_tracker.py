@@ -30,15 +30,15 @@ def get_inflation_data():
         return None
 
 def calculate_purchasing_power(amount, start_year, end_year, df):
-    """Calculate what amount from start_year is worth in end_year"""
-    df_range = df[(df["Year"] >= start_year) & (df["Year"] <= end_year)]
+    """Calculate equivalent purchasing power using cumulative inflation"""
+    df_range = df[(df["Year"] >= start_year) & (df["Year"] <= end_year-1)]
     if df_range.empty:
         return amount
 
-    cumulative_inflation = 1
+    cumulative_multiplier = 1.0
     for rate in df_range["Inflation Rate"]:
-        cumulative_inflation *= (1 + rate/100)
-    return amount * cumulative_inflation
+        cumulative_multiplier *= (1 + rate/100)
+    return round(amount * cumulative_multiplier, 2)
 
 # --- UI ---
 st.title("🇳🇬 Naira Inflation Tracker")

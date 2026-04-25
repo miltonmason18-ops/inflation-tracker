@@ -1,99 +1,57 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import requests
 
 st.set_page_config(
     page_title="Naira Inflation Tracker",
-    page_icon="🇳🇬",
+    page_icon="📈",
     layout="wide"
 )
 
-@st.cache_data(ttl=86400)
-def get_inflation_data():
-    """Fetch Nigeria CPI data and calculate YoY inflation rate"""
-    url = "https://api.worldbank.org/v2/country/NG/indicator/FP.CPI.TOTL?date=2014:2024&format=json&per_page=20"
-    try:
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        if len(data) < 2:
-            return None
+st.title("Naira Inflation Tracker 🇳🇬")
+st.write("Live Consumer Price Index data from World Bank API")
 
-        records = data[1]
-        df = pd.DataFrame([
-            {"Year": int(item["date"]), "CPI": item["value"]}
-            for item in records if item["value"] is not None
-        ])
-        df = df.sort_values("Year")
+# --- Fetch Data ---
+@st.cache_data
+def load_data():
+    url = "https://api.worldbank.org/v2/country/NG/indicator/FP.CPI.TOTL.ZG?format=json&per_page=100"
+    response = requests.get(url)
+    data = response.json()[1]
 
-        # Calculate YoY inflation rate from CPI
-        df["Inflation Rate"] = df["CPI"].pct_change() * 100
-        df = df.dropna() # Remove first row with NaN
-        return df
-    except:
-        return None
+    df = pd.DataFrame(data)
+    df = df[['date', 'value']]
+    df.columns = ['Year', 'Inflation Rate (%)']
+    df = df.dropna()
+    df['Year'] = df['Year'].astype(int)
+    df = df.sort_values('Year')
+    return df
 
-def calculate_purchasing_power(amount, start_year, end_year, df):
-    """Calculate equivalent purchasing power using cumulative inflation"""
-    df_range = df[(df["Year"] > start_year) & (df["Year"] <= end_year)]
-    if df_range.empty:
-        return amount
+try:
+    df = load_data()
 
-    cumulative_multiplier = 1.0
-    for rate in df_range["Inflation Rate"]:
-        cumulative_multiplier *= (1 + rate/100)
-    return round(amount * cumulative_multiplier, 2)
+    # --- Metrics ---
+    latest_year = df['Year'].iloc[-1]
+    latest_rate = df['Inflation Rate (%)'].iloc[-1]
+    prev_rate = df['Inflation Rate (%)'].iloc[-2]
+    change = latest_rate - prev_rate
 
-# --- UI ---
-st.title("🇳🇬 Naira Inflation Tracker")
-st.markdown("Track Nigeria's inflation and see how much purchasing power the Naira has lost since 2015")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Latest Year", f"{latest_year}")
+    col2.metric("Inflation Rate", f"{latest_rate:.2f}%")
+    col3.metric("YoY Change", f"{change:+.2f}%", delta=f"{change:.2f}%")
 
-df = get_inflation_data()
+    # --- Chart ---
+    st.subheader("Annual Inflation Trend")
+    st.line_chart(df.set_index('Year'))
 
-if df is None:
-    st.error("Failed to load World Bank data. Please refresh.")
-    st.stop()
+    # --- Data Table ---
+    with st.expander("View Raw Data"):
+        st.dataframe(df, use_container_width=True)
 
-# Key Metrics
-current_rate = df.iloc[-1]["Inflation Rate"]
-avg_5yr = df.tail(5)["Inflation Rate"].mean()
-peak_year = df.loc[df["Inflation Rate"].idxmax()]
+except Exception as e:
+    st.error("Could not load data. World Bank API might be down.")
+    st.code(f"Error: {e}")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Current Inflation Rate", f"{current_rate:.1f}%", f"{df.iloc[-1]['Year']}")
-col2.metric("5-Year Average", f"{avg_5yr:.1f}%")
-col3.metric("Peak Year", f"{peak_year['Inflation Rate']:.1f}%", f"{int(peak_year['Year'])}")
-
-# Chart
-st.subheader("📈 Inflation Trend 2015-2024")
-fig = px.line(
-    df, x="Year", y="Inflation Rate",
-    markers=True,
-    labels={"Inflation Rate": "Inflation Rate (%)"},
-    template="plotly_white"
-)
-fig.update_traces(line_color="#008751", line_width=3)
-fig.update_layout(height=400, hovermode="x unified")
-st.plotly_chart(fig, use_container_width=True)
-
-# Calculator
-st.subheader("💰 Purchasing Power Calculator")
-st.markdown("See what your money from a past year is worth today")
-
-col1, col2 = st.columns(2)
-with col1:
-    amount = st.number_input("Amount (₦)", min_value=100, value=250000, step=1000)
-    start_year = st.selectbox("From Year", options=df["Year"].tolist()[:-1], index=0)
-with col2:
-    end_year = df["Year"].max()
-    st.metric("To Year", end_year)
-
-    if st.button("Calculate", type="primary"):
-        result = calculate_purchasing_power(amount, start_year, end_year, df)
-        loss = result - amount
-        pct_loss = (loss / amount) * 100
-
-        st.success(f"**₦{amount:,.0f} in {start_year} = ₦{result:,.0f} in {end_year}**")
-        st.warning(f"Purchasing power lost: ₦{loss:,.0f} ({pct_loss:.1f}%)")
-
-st.caption("Data: World Bank | Built with Streamlit | @miltonmason18-ops")
+# --- AUTHOR CREDIT ---
+st.markdown("---")
+st.caption("Built by Omotoso Odunayo Bolaji")

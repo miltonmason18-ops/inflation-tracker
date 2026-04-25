@@ -55,10 +55,12 @@ else:
         cpi_2024 = df[df['Year'] == 2024]['CPI'].values
 
         if len(cpi_2015) > 0 and len(cpi_2024) > 0:
-            equivalent = amount * (cpi_2024 / cpi_2015)
+            cpi_2015_val = cpi_2015[0]
+            cpi_2024_val = cpi_2024[0]
+            equivalent = amount * (cpi_2024_val / cpi_2015_val)
             st.metric("Equivalent in 2024", f"₦{equivalent:,.0f}")
 
-            cumulative_loss = ((cpi_2024 / cpi_2015) - 1) * 100
+            cumulative_loss = ((cpi_2024_val / cpi_2015_val) - 1) * 100
             st.info(f"**Key Insight:** ₦{amount:,.0f} in 2015 has the same purchasing power as ₦{equivalent:,.0f} in 2024. That's {cumulative_loss:.0f}% cumulative inflation.")
         else:
             st.warning("2015 or 2024 CPI data missing from World Bank API.")

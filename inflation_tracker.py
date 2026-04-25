@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
+import io
 
 st.set_page_config(page_title="Naira Inflation Tracker", page_icon="🇳🇬", layout="wide")
 
@@ -44,28 +45,54 @@ else:
     fig.update_layout(yaxis_title="Inflation Rate (%)", xaxis_title="Year")
     st.plotly_chart(fig, use_container_width=True)
 
+    # Download chart as PNG
+    img_bytes = fig.to_image(format="png", width=1200, height=600, scale=2)
+    st.download_button(
+        label="📸 Download Chart as PNG",
+        data=img_bytes,
+        file_name="naira_inflation_2015_2024.png",
+        mime="image/png"
+    )
+
     st.subheader("Purchasing Power Calculator")
     col1, col2 = st.columns(2)
 
     with col1:
-        amount = st.number_input("Amount in 2015 (₦)", value=250000, step=10000, min_value=1)
+        amount = st.number_input("Amount (₦)", value=250000, step=10000, min_value=1)
+        start_year = st.selectbox("From Year", options=df['Year'].tolist(), index=0)
+        end_year = st.selectbox("To Year", options=df['Year'].tolist(), index=len(df)-1)
 
     with col2:
-        cpi_2015 = df[df['Year'] == 2015]['CPI'].values
-        cpi_2024 = df[df['Year'] == 2024]['CPI'].values
-
-        if len(cpi_2015) > 0 and len(cpi_2024) > 0:
-            cpi_2015_val = cpi_2015[0]
-            cpi_2024_val = cpi_2024[0]
-            equivalent = amount * (cpi_2024_val / cpi_2015_val)
-            st.metric("Equivalent in 2024", f"₦{equivalent:,.0f}")
-
-            cumulative_loss = ((cpi_2024_val / cpi_2015_val) - 1) * 100
-            st.info(f"**Key Insight:** ₦{amount:,.0f} in 2015 has the same purchasing power as ₦{equivalent:,.0f} in 2024. That's {cumulative_loss:.0f}% cumulative inflation.")
+        if start_year >= end_year:
+            st.warning("Start year must be before end year")
         else:
-            st.warning("2015 or 2024 CPI data missing from World Bank API.")
+            cpi_start = df[df['Year'] == start_year]['CPI'].values
+            cpi_end = df[df['Year'] == end_year]['CPI'].values
+
+            if len(cpi_start) > 0 and len(cpi_end) > 0:
+                cpi_start_val = cpi_start[0]
+                cpi_end_val = cpi_end[0]
+                equivalent = amount * (cpi_end_val / cpi_start_val)
+                st.metric(f"Equivalent in {end_year}", f"₦{equivalent:,.0f}")
+
+                cumulative_loss = ((cpi_end_val / cpi_start_val) - 1) * 100
+                st.info(f"**Key Insight:** ₦{amount:,.0f} in {start_year} has the same purchasing power as ₦{equivalent:,.0f} in {end_year}. That's {cumulative_loss:.0f}% cumulative inflation.")
+
+                loss = equivalent - amount
+                st.error(f"Purchasing power lost: ₦{loss:,.0f}")
+            else:
+                st.warning(f"CPI data missing for {start_year} or {end_year}.")
 
     with st.expander("View Raw Data"):
         st.dataframe(df[['Year', 'CPI', 'YoY_Inflation']].round(2), use_container_width=True)
+
+        # Download CSV
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Data as CSV",
+            data=csv,
+            file_name="nigeria_cpi_2015_2024.csv",
+            mime="text/csv"
+        )
 
 st.caption("Data Source: World Bank CPI (FP.CPI.TOTL) | Built by Omotoso Odunayo Bolaji")

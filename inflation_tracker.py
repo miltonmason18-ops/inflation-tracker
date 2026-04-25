@@ -27,7 +27,7 @@ def fetch_cpi_data():
         return df
     except Exception as e:
         st.error(f"Could not fetch World Bank CPI data: {e}")
-        return pd.DataFrame()[1]
+        return pd.DataFrame()
 
 df = fetch_cpi_data()
 
@@ -59,9 +59,9 @@ else:
             st.metric("Equivalent in 2024", f"₦{equivalent:,.0f}")
 
             cumulative_loss = ((cpi_2024 / cpi_2015) - 1) * 100
-            st.info(f"**Key Insight:** ₦{amount:,.0f} in 2015 has the same purchasing power as ₦{equivalent:,.0f} in 2024. That's {cumulative_loss:.0f}% cumulative inflation.")[0]
+            st.info(f"**Key Insight:** ₦{amount:,.0f} in 2015 has the same purchasing power as ₦{equivalent:,.0f} in 2024. That's {cumulative_loss:.0f}% cumulative inflation.")
         else:
-            st.warning("2015 or 2024 CPI data missing. Check World Bank API.")
+            st.warning("2015 or 2024 CPI data missing from World Bank API.")
 
     with st.expander("View Raw Data"):
         st.dataframe(df[['Year', 'CPI', 'YoY_Inflation']].round(2), use_container_width=True)

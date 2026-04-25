@@ -17,7 +17,7 @@ def fetch_cpi_data():
     url = "https://api.worldbank.org/v2/country/NGA/indicator/FP.CPI.TOTL?format=json&date=2015:2024&per_page=100"
     try:
         response = requests.get(url, timeout=10)
-        data = response.json()
+        data = response.json()[1] # [1] = actual data, [0] = metadata
         df = pd.DataFrame(data)[['date', 'value']]
         df.columns = ['Year', 'CPI']
         df = df.dropna()

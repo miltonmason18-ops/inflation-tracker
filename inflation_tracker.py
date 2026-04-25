@@ -18,7 +18,7 @@ def fetch_cpi_data():
     url = "https://api.worldbank.org/v2/country/NGA/indicator/FP.CPI.TOTL?format=json&date=2015:2024&per_page=100"
     try:
         response = requests.get(url, timeout=10)
-        data = response.json()[1] # [1] = actual data, [0] = metadata
+        data = response.json()[1]
         df = pd.DataFrame(data)[['date', 'value']]
         df.columns = ['Year', 'CPI']
         df = df.dropna()
@@ -45,14 +45,17 @@ else:
     fig.update_layout(yaxis_title="Inflation Rate (%)", xaxis_title="Year")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Download chart as PNG
-    img_bytes = fig.to_image(format="png", width=1200, height=600, scale=2)
-    st.download_button(
-        label="📸 Download Chart as PNG",
-        data=img_bytes,
-        file_name="naira_inflation_2015_2024.png",
-        mime="image/png"
-    )
+    # Download chart as PNG - with error handling
+    try:
+        img_bytes = fig.to_image(format="png", width=1200, height=600, scale=2)
+        st.download_button(
+            label="📸 Download Chart as PNG",
+            data=img_bytes,
+            file_name="naira_inflation_2015_2024.png",
+            mime="image/png"
+        )
+    except Exception:
+        st.caption("Tip: Right-click the chart → 'Save image as...' to download manually")
 
     st.subheader("Purchasing Power Calculator")
     col1, col2 = st.columns(2)
@@ -86,7 +89,6 @@ else:
     with st.expander("View Raw Data"):
         st.dataframe(df[['Year', 'CPI', 'YoY_Inflation']].round(2), use_container_width=True)
 
-        # Download CSV
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Download Data as CSV",

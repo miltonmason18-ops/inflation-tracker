@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
-import io
 
 st.set_page_config(page_title="Naira Inflation Tracker", page_icon="🇳🇬", layout="wide")
 
@@ -44,18 +43,7 @@ else:
     fig.update_traces(line_color='#008751')
     fig.update_layout(yaxis_title="Inflation Rate (%)", xaxis_title="Year")
     st.plotly_chart(fig, use_container_width=True)
-
-    # Download chart as PNG - with error handling
-    try:
-        img_bytes = fig.to_image(format="png", width=1200, height=600, scale=2)
-        st.download_button(
-            label="📸 Download Chart as PNG",
-            data=img_bytes,
-            file_name="naira_inflation_2015_2024.png",
-            mime="image/png"
-        )
-    except Exception:
-        st.caption("Tip: Right-click the chart → 'Save image as...' to download manually")
+    st.caption("Tip: Right-click the chart → 'Save image as...' to download")
 
     st.subheader("Purchasing Power Calculator")
     col1, col2 = st.columns(2)
